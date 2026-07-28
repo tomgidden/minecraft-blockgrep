@@ -1,0 +1,22 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${fabric_loom_version}"
+}
+
+base {
+    archivesName = "${project.archives_base_name}-common"
+}
+
+loom {
+    mods {
+        "blockgrep" { sourceSet sourceSets.main }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+}
+
+// Nothing consumes this jar: the loader subprojects copy common's class output
+// straight into their own jars, so building it is pure waste.
+jar { enabled = false }

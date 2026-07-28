@@ -1,0 +1,54 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${fabric_loom_version}"
+    id 'maven-publish'
+}
+
+base {
+    archivesName = "${project.archives_base_name}-fabric"
+}
+
+loom {
+    mods {
+        "blockgrep" { sourceSet sourceSets.main }
+    }
+}
+
+repositories {
+    maven { name = 'Xander'; url = 'https://maven.isxander.dev/releases' }
+    maven { name = 'TerraformersMC'; url = 'https://maven.terraformersmc.com/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // The config screen. Runtime-optional: the mod checks for YACL's presence
+    // before offering a screen, so a user without it still gets the commands.
+    implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
+
+    // Only to compile the "Config" button entrypoint. Never needed at runtime:
+    // without ModMenu installed the entrypoint is simply never instantiated.
+    compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    // Pull in the shared, loader-agnostic source
+    implementation project(':common')
+}
+
+processResources {
+    def props = [
+        version: project.version,
+        mod_id: project.mod_id,
+        mod_name: project.mod_name,
+        minecraft_version_min: project.minecraft_version_min,
+        fabric_loader_version: project.fabric_loader_version
+    ]
+    inputs.properties props
+    filesMatching("fabric.mod.json") { expand props }
+}
+
+jar {
+    from(project(':common').sourceSets.main.output)
+    def baseName = base.archivesName.get()
+    from("../LICENSE.txt") { rename { "${it}_${baseName}" } }
+}
