@@ -5,8 +5,6 @@ import cx.gid.minecraft.blockgrep.Constants;
 import cx.gid.minecraft.blockgrep.client.config.ConfigScreenFactory;
 import cx.gid.minecraft.blockgrep.client.config.BlockGrepConfig;
 import cx.gid.minecraft.blockgrep.client.config.PatternManager;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -39,20 +37,21 @@ public final class BlockGrepKeys {
     private static KeyMapping toggleKey;
     private static KeyMapping configKey;
 
-    public static void register() {
-        toggleKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+    /** The two mappings, built but not yet registered with any loader. */
+    public static KeyMapping[] create() {
+        toggleKey = new KeyMapping(
             "key.blockgrep.toggle",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_UNKNOWN,
-            CATEGORY));
+            CATEGORY);
 
-        configKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+        configKey = new KeyMapping(
             "key.blockgrep.config",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_UNKNOWN,
-            CATEGORY));
+            CATEGORY);
 
-        ClientTickEvents.END_CLIENT_TICK.register(BlockGrepKeys::tick);
+        return new KeyMapping[] { toggleKey, configKey };
     }
 
     /**
@@ -61,8 +60,14 @@ public final class BlockGrepKeys {
      * consumeClick() is a queue rather than a level, so this must run every tick
      * whether or not the mod is enabled: leaving presses unconsumed while
      * disabled would mean they all fired at once on re-enabling.
+     *
+     * Called by each loader's tick hook; the mappings must exist by then, so a
+     * loader that has not called {@link #create} yet does nothing.
      */
-    private static void tick(Minecraft client) {
+    public static void tick(Minecraft client) {
+        if (toggleKey == null) {
+            return;
+        }
         while (toggleKey.consumeClick()) {
             BlockGrepConfig config = BlockGrepConfig.get();
             PatternManager.setEnabled(!config.enabled);

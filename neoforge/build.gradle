@@ -1,0 +1,46 @@
+plugins {
+    id 'net.neoforged.moddev' version "${neoforge_moddev_version}"
+}
+
+base {
+    archivesName = "${project.archives_base_name}-neoforge"
+}
+
+neoForge {
+    version = project.neoforge_version
+    mods {
+        blockgrep {
+            sourceSet sourceSets.main
+            sourceSet project(':common').sourceSets.main
+        }
+    }
+}
+
+// common/ is built with Loom and so carries a fabric-loader dependency. It is
+// only ever used at compile time there -- no common class imports it -- so it
+// is dropped here rather than being dragged into a NeoForge runtime.
+configurations.all {
+    exclude group: 'net.fabricmc', module: 'fabric-loader'
+}
+
+dependencies {
+    implementation project(':common')
+}
+
+processResources {
+    def props = [
+        version: project.version,
+        mod_id: project.mod_id,
+        mod_name: project.mod_name,
+        minecraft_version_min: project.minecraft_version_min,
+        neoforge_version_min: project.neoforge_version_min
+    ]
+    inputs.properties props
+    filesMatching("META-INF/neoforge.mods.toml") { expand props }
+}
+
+jar {
+    from(project(':common').sourceSets.main.output)
+    def baseName = base.archivesName.get()
+    from("../LICENSE.txt") { rename { "${it}_${baseName}" } }
+}

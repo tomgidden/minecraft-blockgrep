@@ -14,7 +14,6 @@ loom {
 }
 
 repositories {
-    maven { name = 'Xander'; url = 'https://maven.isxander.dev/releases' }
     maven { name = 'TerraformersMC'; url = 'https://maven.terraformersmc.com/' }
 }
 
@@ -22,10 +21,6 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-
-    // The config screen. Runtime-optional: the mod checks for YACL's presence
-    // before offering a screen, so a user without it still gets the commands.
-    implementation "dev.isxander:yet-another-config-lib:${project.yacl_version}"
 
     // Only to compile the "Config" button entrypoint. Never needed at runtime:
     // without ModMenu installed the entrypoint is simply never instantiated.

@@ -3,12 +3,17 @@ package cx.gid.minecraft.blockgrep.client.config;
 import cx.gid.minecraft.blockgrep.pattern.Symmetry;
 
 import cx.gid.minecraft.blockgrep.Constants;
-import dev.isxander.yacl3.config.v2.api.ConfigClassHandler;
-import dev.isxander.yacl3.config.v2.api.SerialEntry;
-import dev.isxander.yacl3.config.v2.api.serializer.GsonConfigSerializerBuilder;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.resources.Identifier;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,17 +29,71 @@ import java.util.List;
  */
 public class BlockGrepConfig {
 
-    public static final ConfigClassHandler<BlockGrepConfig> HANDLER =
-        ConfigClassHandler.createBuilder(BlockGrepConfig.class)
-            .id(Identifier.tryBuild(Constants.MOD_ID, "config"))
-            .serializer(config -> GsonConfigSerializerBuilder.create(config)
-                .setPath(FabricLoader.getInstance().getConfigDir()
-                    .resolve(Constants.MOD_ID + ".json"))
-                .build())
-            .build();
+    /**
+     * Field names go to snake_case, matching the file this has always written.
+     * Nulls are serialised so a cleared display name stays an explicit "" in the
+     * file rather than vanishing and reverting to a default on the next load.
+     */
+    private static final Gson GSON = new GsonBuilder()
+        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+        .setPrettyPrinting()
+        .create();
+
+    /**
+     * Where the config file lives.
+     *
+     * Supplied by the loader entrypoint rather than looked up here, because the
+     * two loaders find their config directory by different means and this class
+     * is shared between them.
+     */
+    private static Path path;
+
+    /** The loaded config, or defaults until {@link #load} has run. */
+    private static BlockGrepConfig instance = new BlockGrepConfig();
 
     public static BlockGrepConfig get() {
-        return HANDLER.instance();
+        return instance;
+    }
+
+    /** Names the config file. Called once, before {@link #load}. */
+    public static void setPath(Path configPath) {
+        path = configPath;
+    }
+
+    /**
+     * Reads the config, falling back to defaults.
+     *
+     * A file that does not parse is left on disk untouched rather than being
+     * overwritten with defaults: it is likely hand-edited, and silently
+     * discarding it would lose whatever the player was trying to write.
+     */
+    public static void load() {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+            BlockGrepConfig loaded = GSON.fromJson(reader, BlockGrepConfig.class);
+            if (loaded != null) {
+                instance = loaded;
+            }
+        } catch (IOException | JsonParseException e) {
+            Constants.LOGGER.warn("Could not read {}: {}", path, e.toString());
+        }
+    }
+
+    /** Writes the config, creating the directory if this is a first run. */
+    public static void save() {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(path.getParent());
+            try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+                GSON.toJson(instance, writer);
+            }
+        } catch (IOException e) {
+            Constants.LOGGER.error("Could not write {}: {}", path, e.toString());
+        }
     }
 
     // ---- Master switch -----------------------------------------------------
@@ -45,15 +104,12 @@ public class BlockGrepConfig {
      * Kept separate from the per-pattern switches so a player can silence the
      * whole overlay without losing which individual patterns were on.
      */
-    @SerialEntry(comment = "Master switch for pattern highlighting.")
     public boolean enabled = true;
 
     // ---- Search ------------------------------------------------------------
 
-    @SerialEntry(comment = "How far from the player to search, in blocks.")
     public int radius = 32;
 
-    @SerialEntry(comment = "Maximum number of matches reported by a single scan.")
     public int limit = 1024;
 
     // Appearance is per-pattern; see SavedPattern. Several patterns are drawn at
@@ -66,7 +122,6 @@ public class BlockGrepConfig {
      * Every saved pattern. Each carries its own enabled flag and color, and any
      * number of them can be searched for at once — there is no "selected" entry.
      */
-    @SerialEntry(comment = "Saved patterns. Each has its own color and on/off switch.")
     public List<SavedPattern> patterns = defaultPatterns();
 
     /**

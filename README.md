@@ -2,14 +2,28 @@
 
 ![A village with 2x2 `dirt_path` squares highlighted, as well as carrots-beside-carrots ](screenshot1.jpg)
 
-**Minecraft 26.x; Fabric**
+**Minecraft 26.x; Fabric and NeoForge.**
 
-Client-side Fabric mod that highlights every occurrence of a block pattern near you.
+Client-side mod that highlights every occurrence of a block pattern near you.
 
 Patterns can be 1D, 2D or 3D, and you can search for shapes and groups of different
-blocks, including wildcards (`?`)
+blocks, including any-block (`?`)
 
+## Installation
 
+Entirely client-side: the mod reads blocks the client has already been sent and
+draws boxes locally. Nothing is transmitted, so it works on any server — the
+server neither needs the mod nor knows it is there.
+
+### Fabric
+
+Requires the correct [fabric-api jar](https://modrinth.com/mod/fabric-api).
+
+Copy [`blockgrep-fabric-X.X.X.jar`](https://github.com/tomgidden/minecraft-blockgrep/releases) to your `mods/` folder.
+
+### NeoForge
+
+Copy [`blockgrep-neoforge-X.X.X.jar`](https://github.com/tomgidden/minecraft-blockgrep/releases) to your `mods/` folder.
 
 ## Usage
 
@@ -17,7 +31,7 @@ The easiest way to configure the mod is using the GUI settings screen.  This can
 be started with the command `/blockgrep config`, or you can go to
 **Options → Controls → Key Binds → Block Grep** and assign "Open pattern settings" a key.
 
-Or, if you have **Mod Menu** installed, it'll appear in the mod menu list.
+On Fabric, if you have **Mod Menu** installed, it'll appear in the mod menu list.
 
 In the settings screen you can create new patterns and configure their rendering
 settings.
@@ -66,7 +80,6 @@ These are combined into larger patterns using ` `, `|` and `||`.  So,
 | `mud mud \| mud mud` | Four mud blocks in a 2x2 square |
 | `mud,dirt mud,dirt \| mud,dirt mud,dirt` | Four blocks of mud-or-dirt in a 2x2 square |
 | `stone stone \| stone stone \|\| mud mud \| mud mud` | A 2x2x2 cube with stone on the bottom layer and mud on the top layer |
-
 
 #### Examples
 

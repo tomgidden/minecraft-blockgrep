@@ -160,7 +160,7 @@ public final class PatternManager {
      * bound tag registry — exists yet.
      */
     public static void save() {
-        BlockGrepConfig.HANDLER.save();
+        BlockGrepConfig.save();
         invalidate();
     }
 

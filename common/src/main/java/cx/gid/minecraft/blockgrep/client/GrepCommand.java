@@ -14,8 +14,6 @@ import cx.gid.minecraft.blockgrep.pattern.Pattern;
 import cx.gid.minecraft.blockgrep.pattern.PatternSpec;
 import cx.gid.minecraft.blockgrep.pattern.Symmetry;
 import net.minecraft.client.Minecraft;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -42,14 +40,29 @@ import java.util.List;
  *   /blockgrep radius <n>                 search radius
  *   /blockgrep limit <n>                  cap on reported matches
  *   /blockgrep off                        stop highlighting entirely
+ *
+ * Generic in the command source because the two loaders use different ones —
+ * see {@link CommandPlatform}. Nothing in the tree depends on which it is.
+ *
+ * @param <S> the loader's command source type
  */
-public final class GrepCommand {
+public final class GrepCommand<S> {
 
-    private GrepCommand() {}
+    private final CommandPlatform<S> platform;
 
-    public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
+    private GrepCommand(CommandPlatform<S> platform) {
+        this.platform = platform;
+    }
+
+    /** Builds and registers the whole {@code /blockgrep} tree. */
+    public static <S> void register(CommandDispatcher<S> dispatcher,
+                                    CommandPlatform<S> platform) {
+        new GrepCommand<>(platform).registerOn(dispatcher);
+    }
+
+    private void registerOn(CommandDispatcher<S> dispatcher) {
         dispatcher.register(
-            ClientCommands.literal("blockgrep")
+            platform.literal("blockgrep")
                 .then(boxCommand())
                 .then(patternCommand())
                 .then(listCommand())
@@ -68,8 +81,8 @@ public final class GrepCommand {
     }
 
     /** {@code on} — re-enable highlighting without changing the pattern. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> onCommand() {
-        return ClientCommands.literal("on")
+    private LiteralArgumentBuilder<S> onCommand() {
+        return platform.literal("on")
             .executes(ctx -> {
                 PatternManager.setEnabled(true);
                 feedback(ctx.getSource(),
@@ -85,8 +98,8 @@ public final class GrepCommand {
      * inside command dispatch, which happens while the current screen (the chat
      * box) is still processing input.
      */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> configCommand() {
-        return ClientCommands.literal("config")
+    private LiteralArgumentBuilder<S> configCommand() {
+        return platform.literal("config")
             .executes(ctx -> {
                 Minecraft client = Minecraft.getInstance();
                 client.schedule(() -> client.setScreenAndShow(ConfigScreenFactory.create(null)));
@@ -95,8 +108,8 @@ public final class GrepCommand {
     }
 
     /** {@code list} — show every saved pattern with its number and state. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> listCommand() {
-        return ClientCommands.literal("list")
+    private LiteralArgumentBuilder<S> listCommand() {
+        return platform.literal("list")
             .executes(ctx -> {
                 List<SavedPattern> patterns = BlockGrepConfig.get().patterns;
                 if (patterns.isEmpty()) {
@@ -122,9 +135,9 @@ public final class GrepCommand {
     }
 
     /** {@code toggle <n>} — turn one pattern on or off. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> toggleCommand() {
-        return ClientCommands.literal("toggle")
-            .then(ClientCommands.argument("number", IntegerArgumentType.integer(1))
+    private LiteralArgumentBuilder<S> toggleCommand() {
+        return platform.literal("toggle")
+            .then(platform.argument("number", IntegerArgumentType.integer(1))
                 .executes(ctx -> {
                     int oneBased = IntegerArgumentType.getInteger(ctx, "number");
                     Boolean now = PatternManager.togglePattern(oneBased - 1);
@@ -140,9 +153,9 @@ public final class GrepCommand {
     }
 
     /** {@code remove <n>} — delete a pattern. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> removeCommand() {
-        return ClientCommands.literal("remove")
-            .then(ClientCommands.argument("number", IntegerArgumentType.integer(1))
+    private LiteralArgumentBuilder<S> removeCommand() {
+        return platform.literal("remove")
+            .then(platform.argument("number", IntegerArgumentType.integer(1))
                 .executes(ctx -> {
                     int oneBased = IntegerArgumentType.getInteger(ctx, "number");
                     // Read the name before removing it, or the message would have
@@ -158,10 +171,10 @@ public final class GrepCommand {
     }
 
     /** {@code name <n> <text>} — rename a pattern. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> nameCommand() {
-        return ClientCommands.literal("name")
-            .then(ClientCommands.argument("number", IntegerArgumentType.integer(1))
-                .then(ClientCommands.argument("text", StringArgumentType.greedyString())
+    private LiteralArgumentBuilder<S> nameCommand() {
+        return platform.literal("name")
+            .then(platform.argument("number", IntegerArgumentType.integer(1))
+                .then(platform.argument("text", StringArgumentType.greedyString())
                     .executes(ctx -> {
                         int oneBased = IntegerArgumentType.getInteger(ctx, "number");
                         List<SavedPattern> patterns = BlockGrepConfig.get().patterns;
@@ -183,9 +196,9 @@ public final class GrepCommand {
      * The quickest way back to looking at a single thing after several have been
      * switched on, without deleting any of them.
      */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> onlyCommand() {
-        return ClientCommands.literal("only")
-            .then(ClientCommands.argument("number", IntegerArgumentType.integer(1))
+    private LiteralArgumentBuilder<S> onlyCommand() {
+        return platform.literal("only")
+            .then(platform.argument("number", IntegerArgumentType.integer(1))
                 .executes(ctx -> {
                     int oneBased = IntegerArgumentType.getInteger(ctx, "number");
                     List<SavedPattern> patterns = BlockGrepConfig.get().patterns;
@@ -203,13 +216,13 @@ public final class GrepCommand {
     }
 
     /** {@code all on|off} — switch every pattern at once. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> allCommand() {
-        return ClientCommands.literal("all")
-            .then(ClientCommands.literal("on").executes(ctx -> setAll(ctx.getSource(), true)))
-            .then(ClientCommands.literal("off").executes(ctx -> setAll(ctx.getSource(), false)));
+    private LiteralArgumentBuilder<S> allCommand() {
+        return platform.literal("all")
+            .then(platform.literal("on").executes(ctx -> setAll(ctx.getSource(), true)))
+            .then(platform.literal("off").executes(ctx -> setAll(ctx.getSource(), false)));
     }
 
-    private static int setAll(FabricClientCommandSource source, boolean enabled) {
+    private int setAll(S source, boolean enabled) {
         List<SavedPattern> patterns = BlockGrepConfig.get().patterns;
         for (SavedPattern pattern : patterns) {
             pattern.enabled = enabled;
@@ -236,19 +249,19 @@ public final class GrepCommand {
         return Component.literal("'" + patterns.get(index).label() + "'");
     }
 
-    private static int unknownPattern(FabricClientCommandSource source, int oneBased) {
+    private int unknownPattern(S source, int oneBased) {
         error(source, Component.translatable(
             "blockgrep.command.error.no_pattern", oneBased));
         return 0;
     }
 
     /** {@code box <x> <y> <z> <blocks>} — a uniform box of the given size. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> boxCommand() {
-        return ClientCommands.literal("box")
-            .then(ClientCommands.argument("sizeX", IntegerArgumentType.integer(1, 16))
-                .then(ClientCommands.argument("sizeY", IntegerArgumentType.integer(1, 16))
-                    .then(ClientCommands.argument("sizeZ", IntegerArgumentType.integer(1, 16))
-                        .then(ClientCommands.argument("blocks", StringArgumentType.greedyString())
+    private LiteralArgumentBuilder<S> boxCommand() {
+        return platform.literal("box")
+            .then(platform.argument("sizeX", IntegerArgumentType.integer(1, 16))
+                .then(platform.argument("sizeY", IntegerArgumentType.integer(1, 16))
+                    .then(platform.argument("sizeZ", IntegerArgumentType.integer(1, 16))
+                        .then(platform.argument("blocks", StringArgumentType.greedyString())
                             .executes(ctx -> applyBox(
                                 ctx.getSource(),
                                 IntegerArgumentType.getInteger(ctx, "sizeX"),
@@ -267,23 +280,23 @@ public final class GrepCommand {
      * Replaces the old single-layer {@code rows}, which this accepts unchanged:
      * a spec with no layer separator is simply a one-layer pattern.
      */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> patternCommand() {
-        return ClientCommands.literal("pattern")
-            .then(ClientCommands.argument("spec", StringArgumentType.greedyString())
+    private LiteralArgumentBuilder<S> patternCommand() {
+        return platform.literal("pattern")
+            .then(platform.argument("spec", StringArgumentType.greedyString())
                 .executes(ctx -> applyPattern(
                     ctx.getSource(), StringArgumentType.getString(ctx, "spec"))));
     }
 
     /** {@code radius <n>} — how far from the player to search. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> radiusCommand() {
-        return ClientCommands.literal("radius")
-            .then(ClientCommands.argument("blocks",
+    private LiteralArgumentBuilder<S> radiusCommand() {
+        return platform.literal("radius")
+            .then(platform.argument("blocks",
                     IntegerArgumentType.integer(GrepState.MIN_RADIUS, GrepState.MAX_RADIUS))
                 .executes(ctx -> {
                     BlockGrepConfig.get().radius =
                         IntegerArgumentType.getInteger(ctx, "blocks");
                     BlockGrepConfig.get().apply();
-                    BlockGrepConfig.HANDLER.save();
+                    BlockGrepConfig.save();
                     feedback(ctx.getSource(), Component.translatable(
                         "blockgrep.command.radius", GrepState.radius()));
                     return 1;
@@ -291,14 +304,14 @@ public final class GrepCommand {
     }
 
     /** {@code limit <n>} — cap on reported matches. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> limitCommand() {
-        return ClientCommands.literal("limit")
-            .then(ClientCommands.argument("count", IntegerArgumentType.integer(1, 20000))
+    private LiteralArgumentBuilder<S> limitCommand() {
+        return platform.literal("limit")
+            .then(platform.argument("count", IntegerArgumentType.integer(1, 20000))
                 .executes(ctx -> {
                     BlockGrepConfig.get().limit =
                         IntegerArgumentType.getInteger(ctx, "count");
                     BlockGrepConfig.get().apply();
-                    BlockGrepConfig.HANDLER.save();
+                    BlockGrepConfig.save();
                     feedback(ctx.getSource(), Component.translatable(
                         "blockgrep.command.limit", GrepState.limit()));
                     return 1;
@@ -306,8 +319,8 @@ public final class GrepCommand {
     }
 
     /** {@code off} — stop highlighting. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> offCommand() {
-        return ClientCommands.literal("off")
+    private LiteralArgumentBuilder<S> offCommand() {
+        return platform.literal("off")
             .executes(ctx -> {
                 // Only the master switch: the patterns themselves are kept, so
                 // 'on' restores exactly what was being shown.
@@ -319,8 +332,8 @@ public final class GrepCommand {
     }
 
     /** {@code status} — summarise what is being searched for and found. */
-    private static LiteralArgumentBuilder<FabricClientCommandSource> statusCommand() {
-        return ClientCommands.literal("status")
+    private LiteralArgumentBuilder<S> statusCommand() {
+        return platform.literal("status")
             .executes(ctx -> {
                 if (!BlockGrepConfig.get().enabled) {
                     feedback(ctx.getSource(),
@@ -357,7 +370,7 @@ public final class GrepCommand {
             });
     }
 
-    private static int applyBox(FabricClientCommandSource source,
+    private int applyBox(S source,
                                 int sx, int sy, int sz, String blocks) {
         try {
             // Parsed here only so an invalid block name is reported now rather
@@ -381,7 +394,7 @@ public final class GrepCommand {
      * The heavy lifting is in {@link PatternSpec} so that a spec typed here and
      * the same spec stored in the config cannot be read differently.
      */
-    private static int applyPattern(FabricClientCommandSource source, String spec) {
+    private int applyPattern(S source, String spec) {
         try {
             PatternSpec.Parsed parsed = PatternSpec.parseWithSymmetry(spec);
             SavedPattern added = PatternManager.addPattern(
@@ -429,16 +442,16 @@ public final class GrepCommand {
      * translation can move or drop it — some languages would put a bracketed
      * prefix differently, and it is the kind of thing a translator should own.
      */
-    private static void feedback(FabricClientCommandSource source, Component message) {
-        source.sendFeedback(Component.translatable("blockgrep.command.prefix", message));
+    private void feedback(S source, Component message) {
+        platform.sendFeedback(source, Component.translatable("blockgrep.command.prefix", message));
     }
 
-    private static void error(FabricClientCommandSource source, Component message) {
-        source.sendError(Component.translatable("blockgrep.command.prefix", message));
+    private void error(S source, Component message) {
+        platform.sendError(source, Component.translatable("blockgrep.command.prefix", message));
     }
 
     /** Overload for text that is not itself translatable, such as a parse error. */
-    private static void error(FabricClientCommandSource source, String message) {
+    private void error(S source, String message) {
         error(source, Component.literal(message));
     }
 }
