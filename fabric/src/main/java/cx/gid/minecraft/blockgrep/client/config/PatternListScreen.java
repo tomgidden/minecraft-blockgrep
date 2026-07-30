@@ -579,6 +579,7 @@ public class PatternListScreen extends Screen {
         fillPicker.render(graphics, font);
     }
 
+
     @Override
     public void onClose() {
         // The only write to disk. Every edit has already reached the running

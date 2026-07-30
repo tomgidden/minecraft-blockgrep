@@ -54,7 +54,7 @@ public class BlockGrepConfig {
     public int radius = 32;
 
     @SerialEntry(comment = "Maximum number of matches reported by a single scan.")
-    public int limit = 512;
+    public int limit = 1024;
 
     // Appearance is per-pattern; see SavedPattern. Several patterns are drawn at
     // once, so color, thickness and through-walls belong to each search rather
@@ -70,21 +70,17 @@ public class BlockGrepConfig {
     public List<SavedPattern> patterns = defaultPatterns();
 
     /**
-     * The patterns a fresh install starts with — the mud/soul/path 2x2 that the
-     * old {@code softground} command hard-coded, plus a couple of shapes that
-     * demonstrate the syntax beyond a uniform box. Only the first is enabled, so
-     * a new install shows something without flooding the view.
+     * The patterns a fresh install starts with — a couple of shapes that
+     * demonstrate the syntax beyond a uniform box.
      */
     private static List<SavedPattern> defaultPatterns() {
-        String soft = "mud,soul_sand,soul_soil,#minecraft:dirt_path";
         List<SavedPattern> out = new ArrayList<>();
-        out.add(new SavedPattern("Soft ground 2x2",
-            soft + " " + soft + " | " + soft + " " + soft,
-            Symmetry.YAW, 0x00E5FF, true));
+        out.add(new SavedPattern("Diagonal mud", "mud ? | ? mud",
+            Symmetry.YAW, 0xFFB74C, false));
+        out.add(new SavedPattern("Water above grass", "grass_block || water",
+            Symmetry.YAW, 0x4cB7FF, false));
         out.add(new SavedPattern("Diamond ore pair", "diamond_ore diamond_ore",
             Symmetry.YAW, 0x4CFF4C, false));
-        out.add(new SavedPattern("Diagonal mud", "mud ? / ? mud",
-            Symmetry.YAW, 0xFFB74C, false));
         return out;
     }
 

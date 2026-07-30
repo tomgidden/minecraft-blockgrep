@@ -44,6 +44,7 @@ public class ScrollPane extends AbstractScrollArea {
      */
     private Consumer<GuiGraphicsExtractor> overlay = graphics -> {};
 
+
     /** Height of the content, measured from {@link #contentTop()}. */
     private int contentHeight;
 
@@ -69,6 +70,10 @@ public class ScrollPane extends AbstractScrollArea {
         contents.clear();
         contentHeight = 0;
         setScrollAmount(0);
+        // Both refer to widgets that no longer exist; keeping either would send
+        // input to a discarded widget after a rebuild.
+        focused = null;
+        dragging = null;
     }
 
     /**
@@ -85,6 +90,7 @@ public class ScrollPane extends AbstractScrollArea {
     public void setOverlay(Consumer<GuiGraphicsExtractor> overlay) {
         this.overlay = overlay;
     }
+
 
     /**
      * Declares how tall the content is, as an absolute y in content space.
@@ -167,14 +173,22 @@ public class ScrollPane extends AbstractScrollArea {
             return false;
         }
         if (updateScrolling(event)) {
+            // The press was on the scrollbar, so the drag belongs to the
+            // scroller and must not be offered to any child.
+            draggingScrollbar = true;
+            dragging = null;
             return true;
         }
+        draggingScrollbar = false;
         MouseButtonEvent shifted = translate(event);
         for (AbstractWidget widget : contents) {
             if (widget.mouseClicked(shifted, doubled)) {
                 // Focus follows the click, so typing goes to the box just
                 // clicked rather than to whatever held focus before.
                 setFocusedChild(widget);
+                // Remembered separately from focus: a drag belongs to the widget
+                // the press landed on, and focus can move independently.
+                dragging = widget;
                 return true;
             }
         }
@@ -182,30 +196,40 @@ public class ScrollPane extends AbstractScrollArea {
         // screens do — otherwise a text box keeps the caret after the player has
         // clearly moved on from it.
         setFocusedChild(null);
+        dragging = null;
         return true;
     }
 
+    /**
+     * Forwards a drag to the widget the press started on, and only that one.
+     *
+     * Two traps here, both stemming from AbstractWidget.mouseDragged reporting
+     * every drag handled without any hit test. Offering the drag to each child
+     * in turn would let the first one swallow it, so the target is remembered
+     * from the press instead. And super.mouseDragged cannot be used to test
+     * "was this the scrollbar", because when it is not scrolling it falls
+     * through to that same always-true AbstractWidget method — which would
+     * consume the drag before any child saw it. Whether the scrollbar owns the
+     * drag is therefore recorded at press time.
+     */
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
-        // The inherited implementation handles dragging the scroller itself.
-        if (super.mouseDragged(event, dragX, dragY)) {
-            return true;
+        if (draggingScrollbar) {
+            return super.mouseDragged(event, dragX, dragY);
         }
-        MouseButtonEvent shifted = translate(event);
-        for (AbstractWidget widget : contents) {
-            if (widget.mouseDragged(shifted, dragX, dragY)) {
-                return true;
-            }
+        if (dragging == null) {
+            return false;
         }
-        return false;
+        return dragging.mouseDragged(translate(event), dragX, dragY);
     }
 
     @Override
     public void onRelease(MouseButtonEvent event) {
         super.onRelease(event);
-        MouseButtonEvent shifted = translate(event);
-        for (AbstractWidget widget : contents) {
-            widget.onRelease(shifted);
+        draggingScrollbar = false;
+        if (dragging != null) {
+            dragging.onRelease(translate(event));
+            dragging = null;
         }
     }
 
@@ -216,6 +240,12 @@ public class ScrollPane extends AbstractScrollArea {
 
     /** The widget currently receiving typed input, or null. */
     private AbstractWidget focused;
+
+    /** The widget a press landed on, which owns the drag until release. */
+    private AbstractWidget dragging;
+
+    /** Whether the press landed on the scrollbar, which then owns the drag. */
+    private boolean draggingScrollbar;
 
     private void setFocusedChild(AbstractWidget widget) {
         if (focused == widget) {

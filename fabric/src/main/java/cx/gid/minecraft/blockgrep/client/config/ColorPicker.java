@@ -20,9 +20,11 @@ import java.util.function.IntConsumer;
  * natural way to pick a color, RGB the natural way to match an existing one,
  * and hex the natural way to paste one in.
  *
- * Deliberately plain sliders rather than gradient-filled ones. The gradients
- * would have to be redrawn as the color moves, and with a live swatch directly
- * beneath them they add nothing a player cannot already see.
+ * Each slider sits on a gradient track showing what its channel produces across
+ * its range, with the other channels held where they currently are — so the
+ * saturation track runs from grey to the current hue, and moving any slider
+ * repaints the others. The track is drawn behind the widget rather than by it,
+ * which keeps the ordinary vanilla slider and its handle intact.
  *
  * This is a group of ordinary widgets rather than a single composite widget, so
  * the host screen adds them itself via {@link #widgets()} and keeps its own
@@ -35,14 +37,10 @@ public class ColorPicker {
     private static final int ROW_HEIGHT = 14;
 
     /**
-     * Gap between rows. Wide enough for the gradient strip drawn at the top of
-     * each slider to read as belonging to that slider rather than to the one
-     * above it.
+     * Gap between rows, so adjacent gradient tracks stay visually separate
+     * rather than running into one continuous band.
      */
     private static final int ROW_GAP = 4;
-
-    /** Thickness of the gradient strip along the top edge of each slider. */
-    private static final int GRADIENT_HEIGHT = 3;
 
     /** Width reserved for the swatch at the end of the hex row. */
     private static final int SWATCH_WIDTH = 34;
@@ -264,8 +262,7 @@ public class ColorPicker {
     }
 
     /**
-     * Draws the parts that are not widgets: the channel labels, the gradient
-     * strips and the swatch.
+     * Draws the parts that are not widgets: the channel labels and the swatch.
      *
      * Called from the host screen's render, after the widgets have drawn.
      */
@@ -273,7 +270,6 @@ public class ColorPicker {
         for (ChannelSlider slider : sliders) {
             graphics.text(font, label(slider.channel),
                 left, slider.getY() + 3, 0xFFA0A0A0);
-            drawGradient(graphics, slider);
         }
         graphics.text(font, "#", left, hexBox.getY() + 5, 0xFFA0A0A0);
 
@@ -282,37 +278,6 @@ public class ColorPicker {
         drawChequer(graphics, swatchX, swatchY, SWATCH_WIDTH, swatchHeight);
         graphics.fill(swatchX, swatchY, swatchX + SWATCH_WIDTH, swatchY + swatchHeight, color);
         drawOutline(graphics, swatchX, swatchY, SWATCH_WIDTH, swatchHeight, 0xFF000000);
-    }
-
-    /**
-     * A strip along the top of a slider showing what that channel produces
-     * across its range, with the other channels held at their current values.
-     *
-     * Drawn as a band above the track rather than as the track itself: the
-     * vanilla slider paints its own background and handle, and replacing those
-     * would mean reimplementing the widget. A strip keeps the ordinary slider —
-     * with its familiar handle, keyboard handling and hover state — and still
-     * answers the question the gradient is there for, which is "which way do I
-     * drag to get more red?".
-     *
-     * It updates as other channels move, so the saturation strip really does run
-     * from grey to the current hue rather than to a fixed one.
-     */
-    private void drawGradient(GuiGraphicsExtractor graphics, ChannelSlider slider) {
-        int x = slider.getX();
-        int width = slider.getWidth();
-        int y = slider.getY();
-
-        // One filled rectangle per pixel column. At this width that is a few
-        // hundred quads per strip, which is nothing next to a world frame, and
-        // it avoids needing a shader or a generated texture for a band that is
-        // three pixels tall.
-        for (int i = 0; i < width; i++) {
-            float t = width <= 1 ? 0f : (float) i / (width - 1);
-            graphics.fill(x + i, y, x + i + 1, y + GRADIENT_HEIGHT,
-                0xFF000000 | (slider.channel.sample(hsv, color, t) & 0xFFFFFF));
-        }
-        drawOutline(graphics, x, y, width, GRADIENT_HEIGHT + 1, 0x60000000);
     }
 
     /** The familiar two-tone grid used to show transparency. */
@@ -447,6 +412,44 @@ public class ColorPicker {
         ChannelSlider(int x, int y, int width, int height, Channel channel) {
             super(x, y, width, height, Component.empty(), 0);
             this.channel = channel;
+        }
+
+        /**
+         * Draws the gradient track and a handle over it.
+         *
+         * The vanilla implementation is replaced rather than drawn under,
+         * because its track sprite is opaque and would hide the gradient
+         * entirely. Only the track changes: the handle keeps vanilla's geometry
+         * — eight pixels wide, positioned at {@code value * (width - 8)} — so it
+         * still lines up with where a click actually sets the value.
+         */
+        @Override
+        public void extractWidgetRenderState(GuiGraphicsExtractor graphics,
+                                             int mouseX, int mouseY, float partial) {
+            int x = getX();
+            int y = getY();
+            int width = getWidth();
+            int height = getHeight();
+
+            for (int i = 0; i < width; i++) {
+                float t = width <= 1 ? 0f : (float) i / (width - 1);
+                graphics.fill(x + i, y, x + i + 1, y + height,
+                    0xFF000000 | (channel.sample(hsv, color, t) & 0xFFFFFF));
+            }
+
+            // A light border, so a track whose ends are dark still reads as a
+            // control with edges rather than as a bare band of color.
+            drawOutline(graphics, x, y, width, height, 0xFF000000);
+
+            // Hollow, so the track colour under the handle is the colour the
+            // slider is currently set to — the handle frames the value rather
+            // than hiding it. Drawn as a dark ring inside a light one so it
+            // stays visible at both ends of a track that runs black to white.
+            int handleX = x + (int) (value * (width - HANDLE_WIDTH));
+            boolean active = isHovered() || isFocused();
+            drawOutline(graphics, handleX, y, HANDLE_WIDTH, height, 0xFF000000);
+            drawOutline(graphics, handleX + 1, y + 1, HANDLE_WIDTH - 2, height - 2,
+                active ? 0xFFFFFFFF : 0xFFC6C6C6);
         }
 
         /** Refreshes position from the picker's current color. */

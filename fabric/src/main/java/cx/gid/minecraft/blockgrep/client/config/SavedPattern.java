@@ -86,7 +86,7 @@ public class SavedPattern {
      * pattern being used to find buried ore wants it, while one checking
      * something in front of the player usually does not.
      */
-    public boolean xray = true;
+    public boolean xray = false;
 
     /**
      * Whether this pattern is currently being searched for.
