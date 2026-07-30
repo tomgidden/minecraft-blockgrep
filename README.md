@@ -7,23 +7,21 @@
 Client-side mod that highlights every occurrence of a block pattern near you.
 
 Patterns can be 1D, 2D or 3D, and you can search for shapes and groups of different
-blocks, including any-block (`?`)
+blocks, including wildcard (`?`)
 
 ## Installation
-
-Entirely client-side: the mod reads blocks the client has already been sent and
-draws boxes locally. Nothing is transmitted, so it works on any server — the
-server neither needs the mod nor knows it is there.
 
 ### Fabric
 
 Requires the correct [fabric-api jar](https://modrinth.com/mod/fabric-api).
 
-Copy [`blockgrep-fabric-X.X.X.jar`](https://github.com/tomgidden/minecraft-blockgrep/releases) to your `mods/` folder.
+Copy [`blockgrep-fabric-X.X.X.jar`](https://github.com/tomgidden/minecraft-blockgrep/releases)
+to your `mods/` folder.
 
 ### NeoForge
 
-Copy [`blockgrep-neoforge-X.X.X.jar`](https://github.com/tomgidden/minecraft-blockgrep/releases) to your `mods/` folder.
+Copy [`blockgrep-neoforge-X.X.X.jar`](https://github.com/tomgidden/minecraft-blockgrep/releases)
+to your `mods/` folder.
 
 ## Usage
 
