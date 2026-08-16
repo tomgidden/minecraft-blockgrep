@@ -200,7 +200,7 @@ public final class PatternSpec {
      * mud|mud} be written without spaces; slashes deliberately are not, so that
      * an id containing one survives intact.
      */
-    private static List<String> splitOnBars(String text) {
+    public static List<String> splitOnBars(String text) {
         List<String> out = new ArrayList<>();
 
         for (String token : text.trim().split("\\s+")) {
@@ -242,7 +242,7 @@ public final class PatternSpec {
     }
 
     /** Whether a token is a plain non-negative integer usable as an extent. */
-    private static boolean isDimension(String token) {
+    public static boolean isDimension(String token) {
         if (token.isEmpty() || token.length() > 2) {
             return false;
         }
