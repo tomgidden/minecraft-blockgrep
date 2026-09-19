@@ -9,7 +9,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * The mod's key bindings: one to toggle highlighting, one to open the settings.
@@ -41,14 +40,14 @@ public final class BlockGrepKeys {
     public static KeyMapping[] create() {
         toggleKey = new KeyMapping(
             "key.blockgrep.toggle",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_UNKNOWN,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.UNKNOWN.getValue(),
             CATEGORY);
 
         configKey = new KeyMapping(
             "key.blockgrep.config",
-            InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_UNKNOWN,
+            InputConstants.Type.KEYBOARD,
+            InputConstants.UNKNOWN.getValue(),
             CATEGORY);
 
         return new KeyMapping[] { toggleKey, configKey };
