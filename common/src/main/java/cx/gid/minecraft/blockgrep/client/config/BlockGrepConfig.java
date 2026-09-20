@@ -131,11 +131,11 @@ public class BlockGrepConfig {
     private static List<SavedPattern> defaultPatterns() {
         List<SavedPattern> out = new ArrayList<>();
         out.add(new SavedPattern("Diagonal mud", "mud ? | ? mud",
-            Symmetry.YAW, 0xFFB74C, false));
+            Symmetry.YAW, 0xAD6540, false));
         out.add(new SavedPattern("Water above grass", "grass_block || water",
-            Symmetry.YAW, 0x4cB7FF, false));
-        out.add(new SavedPattern("Diamond ore pair", "diamond_ore diamond_ore",
-            Symmetry.YAW, 0x4CFF4C, false));
+            Symmetry.YAW, 0x4CFF94, false));
+        out.add(new SavedPattern("Diamond ore pair", "diamond_ore,deepslate_diamond_ore diamond_ore,deepslate_diamond_ore",
+            Symmetry.ALL, 0xFF4CE4, false));
         return out;
     }
 
