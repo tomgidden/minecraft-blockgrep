@@ -80,9 +80,7 @@ public class PatternListScreen extends Screen {
      * swatch on exactly the screens where the settings are hardest to reach.
      */
     private ScrollPane editorPane;
-
-    /** Result of validating the current spec text; drawn under the spec field. */
-    private Validation validation = new Validation(Component.empty(), 0xFFA0A0A0);
+    private PatternSummary patternSummary = new PatternSummary(Component.empty(), 0xFFA0A0A0);
 
     private static final int ROW_HEIGHT = 22;
     private static final int BUTTON_HEIGHT = 20;
@@ -203,11 +201,9 @@ public class PatternListScreen extends Screen {
         // list, so it belongs against it, and at the bottom it read as a
         // screen-level action alongside Done.
         addRenderableWidget(Button.builder(Component.translatable("blockgrep.screen.add"), b -> {
-            // A new pattern starts as a single don't-care cell: valid, matching
-            // nothing useful, and obviously a stub to be filled in. Starting from
-            // something that fails to parse would show an error before the player
-            // has typed anything.
-            SavedPattern added = PatternManager.addPattern("", "?", Symmetry.YAW);
+            // Start with a valid, visible brush stroke. Users can define the
+            // pattern using text syntax or open the visual 3D builder.
+            SavedPattern added = PatternManager.addPattern("", "stone", Symmetry.YAW);
             rebuildRows();
             select(added);
         }).bounds(GUTTER, listTop - BUTTON_HEIGHT - 4, LIST_WIDTH, BUTTON_HEIGHT).build());
@@ -275,8 +271,10 @@ public class PatternListScreen extends Screen {
 
         this.selected = pattern;
         if (pattern == null) {
+            this.patternSummary = new PatternSummary(Component.empty(), 0xFFA0A0A0);
             return;
         }
+        this.patternSummary = summarize(pattern.spec);
 
         // Remembered for the next open. Recorded on selection rather than on
         // close so it survives the window being closed any way at all --
@@ -311,23 +309,31 @@ public class PatternListScreen extends Screen {
         y += BUTTON_HEIGHT + FIELD_GAP;
 
         y += LABEL_HEIGHT;
-        EditBox specBox = new EditBox(font, left, y, paneWidth, BUTTON_HEIGHT,
-            Component.translatable("blockgrep.editor.spec"));
-        // Long enough for a multi-layer spec of full block ids, which runs to a
-        // few hundred characters once namespaces and alternations are spelled out.
-        specBox.setMaxLength(1024);
-        specBox.setValue(pattern.spec == null ? "" : pattern.spec);
-        specBox.setResponder(v -> {
+        EditBox patternBox = new EditBox(font, left, y, paneWidth, BUTTON_HEIGHT,
+            Component.translatable("blockgrep.editor.pattern"));
+        patternBox.setMaxLength(2048);
+        patternBox.setValue(pattern.spec == null ? "" : pattern.spec);
+        patternBox.setHint(Component.translatable("blockgrep.editor.pattern.hint"));
+        patternBox.setResponder(v -> {
             pattern.spec = v;
-            validation = validate(v);
+            patternSummary = summarize(v);
+            // The list shows the spec when unnamed, so rebuild rows as it is typed.
             rebuildRows();
             edited();
         });
-        addEditorWidget(specBox);
-        validation = validate(specBox.getValue());
-        // The validation line sits below the box, not over it: it is its own
-        // row, with the same gap after it as any other field.
-        y += BUTTON_HEIGHT + LABEL_HEIGHT + FIELD_GAP;
+        addEditorWidget(patternBox);
+        y += BUTTON_HEIGHT + 4;
+
+        Button patternButton = Button.builder(
+                Component.translatable("blockgrep.editor.pattern.open"),
+                b -> minecraft.setScreenAndShow(new PatternEditorScreen(this, pattern)))
+            .bounds(left, y, paneWidth, BUTTON_HEIGHT)
+            .tooltip(net.minecraft.client.gui.components.Tooltip.create(
+                Component.translatable("blockgrep.editor.pattern.tooltip")))
+            .build();
+        addEditorWidget(patternButton);
+        // The summary line below is drawn by renderEditorLabels.
+        y += BUTTON_HEIGHT + 4 + LABEL_HEIGHT + FIELD_GAP;
 
         // The orientation summary is a line of its own before the checkboxes.
         y += LABEL_HEIGHT + 4;
@@ -587,10 +593,10 @@ public class PatternListScreen extends Screen {
             left, y, 0xFFA0A0A0);
         y += LABEL_HEIGHT + BUTTON_HEIGHT + FIELD_GAP;
 
-        graphics.text(font, Component.translatable("blockgrep.editor.spec"),
+        graphics.text(font, Component.translatable("blockgrep.editor.pattern"),
             left, y, 0xFFA0A0A0);
-        y += LABEL_HEIGHT + BUTTON_HEIGHT;
-        graphics.text(font, validation.message(), left, y + 2, validation.color());
+        y += LABEL_HEIGHT + BUTTON_HEIGHT + 4 + BUTTON_HEIGHT + 4;
+        graphics.text(font, patternSummary.message(), left, y, patternSummary.color());
         y += LABEL_HEIGHT + FIELD_GAP;
 
         // Reports the group the checkboxes below add up to — the number is the
@@ -634,29 +640,41 @@ public class PatternListScreen extends Screen {
             symmetry.transforms().size(), symmetry.spec());
     }
 
-    /** Validates spec text, producing the line shown beneath the field. */
-    private static Validation validate(String spec) {
+    /** Reads just enough of the generated source to summarize the visual draft. */
+    private static PatternSummary summarize(String spec) {
         if (spec == null || spec.isBlank()) {
-            return new Validation(
-                Component.translatable("blockgrep.editor.spec.empty"), 0xFFA0A0A0);
+            return new PatternSummary(
+                Component.translatable("blockgrep.editor.pattern.empty"), 0xFFE05050);
         }
         try {
-            Pattern parsed = PatternSpec.parse(spec);
-            return new Validation(
-                Component.translatable("blockgrep.editor.spec.valid",
-                    parsed.sizeX(), parsed.sizeY(), parsed.sizeZ(),
-                    parsed.significantCells()),
+            Pattern pat = PatternSpec.parse(spec);
+            return new PatternSummary(
+                Component.translatable("blockgrep.editor.pattern.summary",
+                    pat.sizeX(), pat.sizeY(), pat.sizeZ(),
+                    pat.significantCells()),
                 0xFF60D060);
-        } catch (BlockPredicates.ParseException e) {
-            // The parse error itself is not translated: it comes from the shared
-            // module, which has no access to the language files, and it names
-            // block ids and spec fragments that would not be translated anyway.
-            return new Validation(Component.literal(e.getMessage()), 0xFFE05050);
+        } catch (BlockPredicates.ParseException pe) {
+            try {
+                EditablePattern parsed = EditablePattern.parse(spec);
+                return new PatternSummary(
+                    Component.translatable("blockgrep.editor.pattern.summary",
+                        parsed.sizeX(), parsed.sizeY(), parsed.sizeZ(),
+                        parsed.significantCells()),
+                    parsed.isValid() ? 0xFF60D060 : 0xFFE05050);
+            } catch (RuntimeException ignored) {
+                return new PatternSummary(
+                    Component.translatable("blockgrep.editor.pattern.invalid", pe.getMessage()),
+                    0xFFE05050);
+            }
+        } catch (RuntimeException e) {
+            return new PatternSummary(
+                Component.translatable("blockgrep.editor.pattern.invalid",
+                    e.getMessage() != null ? e.getMessage() : "syntax error"),
+                0xFFE05050);
         }
     }
 
-    /** The feedback line under the spec field: what to say, and in what color. */
-    private record Validation(Component message, int color) {}
+    private record PatternSummary(Component message, int color) {}
 
     /** The global search radius, in the range the scanner accepts. */
     private static class RadiusSlider extends AbstractSliderButton {
