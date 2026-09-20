@@ -24,7 +24,8 @@ import java.io.IOException;
  * <h2>Accepted forms</h2>
  * <ul>
  *   <li>{@code "#aarrggbb"} or {@code "aarrggbb"} -- full colour with alpha</li>
- *   <li>{@code "#rrggbb"} or {@code "rrggbb"} -- assumed fully opaque</li>
+ *   <li>{@code "#rrggbb"} or {@code "rrggbb"} -- alpha supplied by the field:
+ *       opaque for an outline, faint for a fill</li>
  *   <li>a bare JSON number -- the historical signed integer</li>
  * </ul>
  *
@@ -32,8 +33,38 @@ import java.io.IOException;
  * Eight rather than six because alpha is load-bearing here: the fill colour is
  * deliberately translucent, and dropping its alpha on save would turn every
  * fill opaque.
+ *
+ * <h2>Why two subclasses</h2>
+ * A six-digit colour has no alpha, and the sensible default differs by field:
+ * an outline written {@code "#ff00ff"} means a solid magenta line, whereas a
+ * fill written the same way means a faint magenta wash -- the same convention
+ * {@link SavedPattern#SavedPattern(String, String, Symmetry, int, boolean)}
+ * already applies when a pattern is created from a bare hue. Gson picks an
+ * adapter per field, so the difference is carried by {@link Stroke} and
+ * {@link Fill} rather than by anything at the call site.
  */
-public final class HexColor extends TypeAdapter<Integer> {
+public abstract class HexColor extends TypeAdapter<Integer> {
+
+    /** Adapter for an outline colour: a six-digit value is opaque. */
+    public static final class Stroke extends HexColor {
+        public Stroke() {
+            super(SavedPattern.STROKE_ALPHA);
+        }
+    }
+
+    /** Adapter for a fill colour: a six-digit value takes the faint fill alpha. */
+    public static final class Fill extends HexColor {
+        public Fill() {
+            super(SavedPattern.FILL_ALPHA);
+        }
+    }
+
+    /** Alpha applied when the value read has none, as {@code 0xAA000000}. */
+    private final int defaultAlpha;
+
+    private HexColor(int defaultAlpha) {
+        this.defaultAlpha = defaultAlpha;
+    }
 
     @Override
     public void write(JsonWriter out, Integer value) throws IOException {
@@ -60,16 +91,18 @@ public final class HexColor extends TypeAdapter<Integer> {
             return in.nextInt();
         }
 
-        String raw = in.nextString().trim();
-        return parse(raw);
+        return parse(in.nextString().trim(), defaultAlpha);
     }
 
     /**
      * Parses a hex colour, or throws {@link IOException} so Gson reports it as
      * a parse failure and the config falls back to defaults rather than loading
      * a pattern with a nonsense colour.
+     *
+     * @param defaultAlpha alpha to apply to a six-digit value, as
+     *                     {@code 0xAA000000}
      */
-    static int parse(String raw) throws IOException {
+    static int parse(String raw, int defaultAlpha) throws IOException {
         String hex = raw.startsWith("#") ? raw.substring(1) : raw;
 
         if (hex.length() != 6 && hex.length() != 8) {
@@ -83,11 +116,8 @@ public final class HexColor extends TypeAdapter<Integer> {
             throw new IOException("colour '" + raw + "' is not hexadecimal");
         }
 
-        // Six digits means no alpha was given. Opaque is the only sensible
-        // reading: a colour written without an alpha channel is not a request
-        // for an invisible one.
         if (hex.length() == 6) {
-            return (int) (0xFF000000L | value);
+            return defaultAlpha | (int) value;
         }
 
         // Long.parseLong is used rather than Integer.parseInt because eight

@@ -60,7 +60,7 @@ public class SavedPattern {
      * Written to the config file as a hex string ({@code "#ff00e5ff"}); see
      * {@link HexColor}.
      */
-    @JsonAdapter(HexColor.class)
+    @JsonAdapter(HexColor.Stroke.class)
     public int strokeColor = 0xFF00E5FF;
 
     /**
@@ -72,7 +72,7 @@ public class SavedPattern {
      *
      * Written to the config file as a hex string; see {@link HexColor}.
      */
-    @JsonAdapter(HexColor.class)
+    @JsonAdapter(HexColor.Fill.class)
     public int fillColor = 0x2600E5FF;
 
     /** Thickness of the outline. */
@@ -105,6 +105,23 @@ public class SavedPattern {
      */
     public boolean enabled = true;
 
+    /**
+     * Default alpha for an outline: fully opaque, so the box reads clearly.
+     *
+     * Also the alpha assumed when a config file gives a stroke colour as six
+     * hex digits; see {@link HexColor}.
+     */
+    public static final int STROKE_ALPHA = 0xFF000000;
+
+    /**
+     * Default alpha for a fill: faint, so a dense set of matches does not hide
+     * the terrain being read.
+     *
+     * Also the alpha assumed when a config file gives a fill colour as six hex
+     * digits; see {@link HexColor}.
+     */
+    public static final int FILL_ALPHA = 0x26000000;
+
     /** GSON requires a no-args constructor to deserialise entries. */
     public SavedPattern() {}
 
@@ -123,8 +140,8 @@ public class SavedPattern {
         this.name = name;
         this.spec = spec;
         this.symmetry = symmetry.spec();
-        this.strokeColor = 0xFF000000 | (rgb & 0xFFFFFF);
-        this.fillColor = 0x26000000 | (rgb & 0xFFFFFF);
+        this.strokeColor = STROKE_ALPHA | (rgb & 0xFFFFFF);
+        this.fillColor = FILL_ALPHA | (rgb & 0xFFFFFF);
         this.enabled = enabled;
     }
 
