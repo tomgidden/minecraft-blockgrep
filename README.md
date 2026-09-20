@@ -71,13 +71,11 @@ Patterns are made of cell predicates, each of which tries to match a block:
 
 These are combined into larger patterns using ` `, `|` and `||`.  So,
 
-| Form | Meaning |
-|---|---|
-| `mud mud` | Two mud blocks beside each other (east-to-west) |
-| `mud \| mud` | Two mud blocks beside each other (north-to-south) |
-| `mud mud \| mud mud` | Four mud blocks in a 2x2 square |
-| `mud,dirt mud,dirt \| mud,dirt mud,dirt` | Four blocks of mud-or-dirt in a 2x2 square |
-| `stone stone \| stone stone \|\| mud mud \| mud mud` | A 2x2x2 cube with stone on the bottom layer and mud on the top layer |
+* `mud mud`:  Two mud blocks beside each other (east-to-west)
+* `mud | mud`: Two mud blocks beside each other (north-to-south)
+* `mud mud | mud mud`: Four mud blocks in a 2x2 square
+* `mud,dirt mud,dirt | mud,dirt mud,dirt`: Four blocks of mud-or-dirt in a 2x2 square
+* `stone stone | stone stone || mud mud | mud mud`: A 2x2x2 cube with stone on the bottom layer and mud on the top layer
 
 #### Examples
 
