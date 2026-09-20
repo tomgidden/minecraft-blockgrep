@@ -1,5 +1,7 @@
 package cx.gid.minecraft.blockgrep.client.config;
 
+import com.google.gson.annotations.JsonAdapter;
+
 import cx.gid.minecraft.blockgrep.client.ActivePattern;
 import cx.gid.minecraft.blockgrep.pattern.BlockPredicates;
 import cx.gid.minecraft.blockgrep.pattern.Pattern;
@@ -54,7 +56,11 @@ public class SavedPattern {
      * The alpha is part of the color rather than a separate opacity setting, so
      * that one pattern can be emphasised and another dimmed without touching a
      * global that would move both.
+     *
+     * Written to the config file as a hex string ({@code "#ff00e5ff"}); see
+     * {@link HexColor}.
      */
+    @JsonAdapter(HexColor.class)
     public int strokeColor = 0xFF00E5FF;
 
     /**
@@ -63,7 +69,10 @@ public class SavedPattern {
      * Kept separate from the outline rather than derived from it, since the two
      * usually want very different alphas: a solid fill on a dense set of matches
      * hides the terrain the player is trying to read.
+     *
+     * Written to the config file as a hex string; see {@link HexColor}.
      */
+    @JsonAdapter(HexColor.class)
     public int fillColor = 0x2600E5FF;
 
     /** Thickness of the outline. */
