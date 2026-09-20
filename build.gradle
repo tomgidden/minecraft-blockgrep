@@ -16,6 +16,74 @@ subprojects {
 }
 
 /**
+ * Copies the built jars into local devserver mods directories.
+ *
+ * `./gradlew deploy` builds both loaders and installs both. Deploying the pair together
+ * is the point: a session spent testing one loader while the other's jar silently ages is
+ * how a playtest ends up describing behaviour from a build that no longer exists — which
+ * cost an evening once, chasing three theories about code that was not running.
+ *
+ * Destinations come from the DEVSERVERS environment variable, colon-separated, and are
+ * deliberately *not* a committed property — they describe one developer's machine, not
+ * the project:
+ *
+ *     export DEVSERVERS=../devserver/26.2-fabric/mods:../devserver/26.2-neoforge/mods
+ *
+ * Each jar goes to every listed directory that could plausibly want it: a directory is a
+ * candidate if it already holds a jar of the same name, or if its path names the loader.
+ * That way one variable serves both loaders without saying which is which, and a
+ * directory belonging to some other setup is left alone.
+ */
+def deployJars(Project root) {
+    def raw = System.getenv('DEVSERVERS')
+    if (!raw?.trim()) {
+        root.logger.lifecycle('deploy: DEVSERVERS is not set, nothing to do')
+        root.logger.lifecycle('deploy: e.g. export DEVSERVERS=../devserver/26.2-fabric/mods:../devserver/26.2-neoforge/mods')
+        return
+    }
+
+    def dests = raw.split(File.pathSeparator)
+        .collect { it.trim() }.findAll { it }.collect { root.file(it) }
+
+    def missing = dests.findAll { !it.isDirectory() }
+    if (missing) {
+        // A wrong path means the jar lands where nothing reads it, which is the silent
+        // failure this task exists to prevent. Say so rather than carrying on.
+        throw new GradleException('deploy: not a directory: ' + missing.join(', '))
+    }
+
+    int copied = 0
+    ['fabric', 'neoforge'].each { loader ->
+        def jar = root.project(":${loader}").tasks.named('jar').get()
+            .archiveFile.get().asFile
+        if (!jar.isFile()) throw new GradleException("deploy: ${loader} jar not found at ${jar}")
+
+        dests.findAll { dest ->
+            new File(dest, jar.name).isFile() || dest.path.contains(loader)
+        }.each { dest ->
+            def target = new File(dest, jar.name)
+            java.nio.file.Files.copy(jar.toPath(), target.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            root.logger.lifecycle("deploy: ${target}")
+            copied++
+        }
+    }
+
+    if (copied == 0) {
+        root.logger.warn('deploy: none of the DEVSERVERS directories matched a loader; '
+            + 'nothing was copied')
+    }
+}
+
+tasks.register('deploy') {
+    group = 'distribution'
+    description = 'Builds both loaders and copies their jars to $DEVSERVERS'
+    dependsOn ':fabric:build', ':neoforge:build'
+    doLast { deployJars(project) }
+}
+
+
+/**
  * Removes everything the build produces, back to what a fresh clone contains.
  *
  * `gradle clean` only removes each project's own build directory. It leaves the
