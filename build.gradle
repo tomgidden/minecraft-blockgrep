@@ -14,3 +14,72 @@ subprojects {
         it.options.release = 25
     }
 }
+
+/**
+ * Removes everything the build produces, back to what a fresh clone contains.
+ *
+ * `gradle clean` only removes each project's own build directory. It leaves the
+ * Gradle caches, Loom's decompiled-Minecraft cache, IDE output directories and
+ * run directories -- several hundred megabytes on a working checkout, and the
+ * usual reason a "clean" build still picks up something stale.
+ *
+ * Deliberately conservative: it deletes a fixed list of known build outputs
+ * rather than anything `git clean` would remove, because .gitignore also covers
+ * files that are precious (a local config.py, IDE settings someone has tuned).
+ * Being asked to clean a build must never cost someone their own untracked work.
+ *
+ * Run as `./gradlew distclean`. The Gradle daemon holds .gradle open on Windows
+ * and sometimes on macOS, so a failure to delete it is reported rather than
+ * being treated as fatal -- `--no-daemon` or `./gradlew --stop` first if it
+ * matters.
+ */
+tasks.register('distclean') {
+    group = 'build'
+    description = 'Delete all build output, caches and IDE artifacts (more than clean)'
+
+    // Paths are resolved at configuration time; the deletion itself happens in
+    // the action, so the task still honours --dry-run.
+    def rootDir = project.rootDir
+    def targets = ['.gradle', 'build', 'bin', 'out', 'run', 'runs', '.loom-cache']
+    def projectDirs = [rootDir] + subprojects.collect { it.projectDir }
+
+    // A local closure rather than an extension on File: adding a method to a
+    // JDK class from a build script leaks into every other script in the
+    // build, and is a nuisance to find when something else then relies on it.
+    def sizeOf
+    sizeOf = { File f ->
+        if (!f.isDirectory()) {
+            return f.length()
+        }
+        def kids = f.listFiles()
+        kids == null ? 0L : kids.sum { sizeOf(it) } ?: 0L
+    }
+
+    doLast {
+        long freed = 0
+        int removed = 0
+
+        projectDirs.each { dir ->
+            targets.each { name ->
+                def victim = new File(dir, name)
+                if (!victim.exists()) {
+                    return
+                }
+                long size = sizeOf(victim)
+                if (victim.deleteDir()) {
+                    freed += size
+                    removed++
+                    logger.lifecycle("removed ${rootDir.toPath().relativize(victim.toPath())}")
+                } else {
+                    logger.warn("could not remove ${victim} (a running Gradle daemon may hold it open)")
+                }
+            }
+        }
+
+        if (removed == 0) {
+            logger.lifecycle('nothing to remove; already clean')
+        } else {
+            logger.lifecycle(String.format('removed %d directories, freeing %.1f MB', removed, freed / 1048576.0))
+        }
+    }
+}
