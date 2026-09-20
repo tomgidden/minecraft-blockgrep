@@ -1,4 +1,4 @@
-**Minecraft 26.x | Fabric and NeoForge**
+**Minecraft 26.3 | Fabric and NeoForge**
 
 Highlights every occurrence of a block pattern near you. Patterns are built from
 per-cell predicates (block ids, tags, alternations, wildcards and negations),
