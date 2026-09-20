@@ -47,6 +47,24 @@ public class PatternListScreen extends Screen {
     /** The pattern the right-hand pane is editing, or null when none is chosen. */
     private SavedPattern selected;
 
+    /**
+     * Which row was selected when the screen was last closed, so reopening
+     * returns to the pattern being worked on rather than to the top of the
+     * list.
+     *
+     * <p>Static because the screen is constructed afresh on every open -- the
+     * instance field above cannot outlive it -- and because this is a UI
+     * convenience rather than state worth persisting to disk. It resets on
+     * game restart, which is the right lifetime for "where was I just now".
+     *
+     * <p>Stored as an index rather than a reference to the pattern itself:
+     * {@link SavedPattern} has no identity beyond the object, its name is
+     * mutable and may repeat, and the list is reloaded from disk, so a held
+     * reference would go stale while an index still means something. An index
+     * that no longer exists is simply clamped when reopening.
+     */
+    private static int lastSelectedIndex = 0;
+
     /** Widgets belonging to the editor pane, rebuilt whenever the selection changes. */
     private final List<AbstractWidget> editorWidgets = new ArrayList<>();
 
@@ -199,13 +217,17 @@ public class PatternListScreen extends Screen {
 
         rebuildRows();
 
-        // Keep the previous selection across a resize, falling back to the first
-        // pattern so the editor pane is not needlessly blank on opening.
+        // Keep the previous selection across a resize, and across a close and
+        // reopen: init() runs for both, and the two cases differ only in
+        // whether the instance field survived. Falling back to the remembered
+        // index covers the reopen; falling back to the first pattern covers a
+        // first open or a list that has since shrunk.
         List<SavedPattern> patterns = config.patterns;
         if (selected != null && patterns.contains(selected)) {
             select(selected);
         } else if (!patterns.isEmpty()) {
-            select(patterns.getFirst());
+            int index = Math.clamp(lastSelectedIndex, 0, patterns.size() - 1);
+            select(patterns.get(index));
         } else {
             select(null);
         }
@@ -254,6 +276,14 @@ public class PatternListScreen extends Screen {
         this.selected = pattern;
         if (pattern == null) {
             return;
+        }
+
+        // Remembered for the next open. Recorded on selection rather than on
+        // close so it survives the window being closed any way at all --
+        // Escape, the Done button, or the game shutting the screen itself.
+        int index = BlockGrepConfig.get().patterns.indexOf(pattern);
+        if (index >= 0) {
+            lastSelectedIndex = index;
         }
 
         int left = editorLeft();
