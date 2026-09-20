@@ -2,8 +2,8 @@ package cx.gid.minecraft.blockgrep.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import cx.gid.minecraft.blockgrep.Constants;
-import cx.gid.minecraft.blockgrep.client.config.ConfigScreenFactory;
 import cx.gid.minecraft.blockgrep.client.config.BlockGrepConfig;
+import cx.gid.minecraft.blockgrep.client.config.ConfigScreenFactory;
 import cx.gid.minecraft.blockgrep.client.config.PatternManager;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -25,69 +25,78 @@ import net.minecraft.resources.Identifier;
  * assigned. The suggested pairing is P for the toggle and a modifier or nearby
  * key for the settings.
  */
-public final class BlockGrepKeys {
+public final class BlockGrepKeys
+{
+  private BlockGrepKeys() {}
 
-    private BlockGrepKeys() {}
+  /**
+   * The controls-screen heading these appear under.
+   */
+  private static final KeyMapping.Category CATEGORY =
+      KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "main"));
 
-    /** The controls-screen heading these appear under. */
-    private static final KeyMapping.Category CATEGORY =
-        KeyMapping.Category.register(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "main"));
+  private static KeyMapping toggleKey;
+  private static KeyMapping configKey;
 
-    private static KeyMapping toggleKey;
-    private static KeyMapping configKey;
+  /**
+   * The two mappings, built but not yet registered with any loader.
+   */
+  public static KeyMapping[] create()
+  {
+    toggleKey = new KeyMapping(
+        "key.blockgrep.toggle",
+        InputConstants.Type.KEYBOARD,
+        InputConstants.UNKNOWN.getValue(),
+        CATEGORY
+    );
 
-    /** The two mappings, built but not yet registered with any loader. */
-    public static KeyMapping[] create() {
-        toggleKey = new KeyMapping(
-            "key.blockgrep.toggle",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.UNKNOWN.getValue(),
-            CATEGORY);
+    configKey = new KeyMapping(
+        "key.blockgrep.config",
+        InputConstants.Type.KEYBOARD,
+        InputConstants.UNKNOWN.getValue(),
+        CATEGORY
+    );
 
-        configKey = new KeyMapping(
-            "key.blockgrep.config",
-            InputConstants.Type.KEYBOARD,
-            InputConstants.UNKNOWN.getValue(),
-            CATEGORY);
+    return new KeyMapping[] {toggleKey, configKey};
+  }
 
-        return new KeyMapping[] { toggleKey, configKey };
+  /**
+   * Drains any presses that happened this tick.
+   *
+   * consumeClick() is a queue rather than a level, so this must run every tick
+   * whether or not the mod is enabled: leaving presses unconsumed while
+   * disabled would mean they all fired at once on re-enabling.
+   *
+   * Called by each loader's tick hook; the mappings must exist by then, so a
+   * loader that has not called {@link #create} yet does nothing.
+   */
+  public static void tick(Minecraft client)
+  {
+    if(toggleKey == null) {
+      return;
+    }
+    while(toggleKey.consumeClick()) {
+      BlockGrepConfig config = BlockGrepConfig.get();
+      PatternManager.setEnabled(!config.enabled);
+
+      // Said in the action bar rather than chat: it is a transient
+      // acknowledgement of a keypress, not something worth a log line.
+      if(client.player != null) {
+        client.player.sendOverlayMessage(Component.translatable(
+            config.enabled
+                ? "blockgrep.message.toggle.on"
+                : "blockgrep.message.toggle.off"
+        ));
+      }
     }
 
-    /**
-     * Drains any presses that happened this tick.
-     *
-     * consumeClick() is a queue rather than a level, so this must run every tick
-     * whether or not the mod is enabled: leaving presses unconsumed while
-     * disabled would mean they all fired at once on re-enabling.
-     *
-     * Called by each loader's tick hook; the mappings must exist by then, so a
-     * loader that has not called {@link #create} yet does nothing.
-     */
-    public static void tick(Minecraft client) {
-        if (toggleKey == null) {
-            return;
-        }
-        while (toggleKey.consumeClick()) {
-            BlockGrepConfig config = BlockGrepConfig.get();
-            PatternManager.setEnabled(!config.enabled);
-
-            // Said in the action bar rather than chat: it is a transient
-            // acknowledgement of a keypress, not something worth a log line.
-            if (client.player != null) {
-                client.player.sendOverlayMessage(Component.translatable(
-                    config.enabled
-                        ? "blockgrep.message.toggle.on"
-                        : "blockgrep.message.toggle.off"));
-            }
-        }
-
-        while (configKey.consumeClick()) {
-            // Only when the game is willing to have the current screen replaced.
-            // Opening over an open container or another menu would dismiss it
-            // from under the player; canInterruptScreen answers exactly that.
-            if (client.canInterruptScreen()) {
-                client.setScreenAndShow(ConfigScreenFactory.create(null));
-            }
-        }
+    while(configKey.consumeClick()) {
+      // Only when the game is willing to have the current screen replaced.
+      // Opening over an open container or another menu would dismiss it
+      // from under the player; canInterruptScreen answers exactly that.
+      if(client.canInterruptScreen()) {
+        client.setScreenAndShow(ConfigScreenFactory.create(null));
+      }
     }
+  }
 }

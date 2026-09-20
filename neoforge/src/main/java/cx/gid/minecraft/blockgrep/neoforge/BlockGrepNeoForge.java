@@ -27,65 +27,69 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
  */
 @Mod(value = Constants.MOD_ID, dist = Dist.CLIENT)
 public class BlockGrepNeoForge {
+  public BlockGrepNeoForge(IEventBus modEventBus)
+  {
+    // Config is read here rather than in client setup so that a setting is
+    // never observed before it has been loaded.
+    BlockGrepConfig.setPath(
+        FMLPaths.CONFIGDIR.get().resolve(Constants.MOD_ID + ".json"));
+    BlockGrepConfig.load();
+    BlockGrepConfig.get().apply();
 
-    public BlockGrepNeoForge(IEventBus modEventBus) {
-        // Config is read here rather than in client setup so that a setting is
-        // never observed before it has been loaded.
-        BlockGrepConfig.setPath(
-            FMLPaths.CONFIGDIR.get().resolve(Constants.MOD_ID + ".json"));
-        BlockGrepConfig.load();
-        BlockGrepConfig.get().apply();
+    // Not compiled yet: a pattern naming a block tag needs the registry,
+    // and tags are not bound until a world loads. See BlockGrepClient.
+    PatternManager.invalidate();
 
-        // Not compiled yet: a pattern naming a block tag needs the registry,
-        // and tags are not bound until a world loads. See BlockGrepClient.
-        PatternManager.invalidate();
+    modEventBus.addListener(this::onClientSetup);
+    modEventBus.addListener(this::onRegisterKeyMappings);
 
-        modEventBus.addListener(this::onClientSetup);
-        modEventBus.addListener(this::onRegisterKeyMappings);
+    NeoForge.EVENT_BUS.addListener(this::onRegisterClientCommands);
+    NeoForge.EVENT_BUS.addListener(this::onClientTick);
+  }
 
-        NeoForge.EVENT_BUS.addListener(this::onRegisterClientCommands);
-        NeoForge.EVENT_BUS.addListener(this::onClientTick);
+  private void onClientSetup(FMLClientSetupEvent event)
+  {
+    Constants.LOGGER.info("{} (NeoForge) initialized", Constants.MOD_NAME);
+  }
+
+  private void onRegisterKeyMappings(RegisterKeyMappingsEvent event)
+  {
+    for (net.minecraft.client.KeyMapping mapping : BlockGrepKeys.create()) {
+      event.register(mapping);
+    }
+  }
+
+  private void onRegisterClientCommands(RegisterClientCommandsEvent event)
+  {
+    GrepCommand.register(event.getDispatcher(), new NeoForgeCommandPlatform());
+  }
+
+  /**
+   * The per-tick scan and gizmo emission.
+   *
+   * NeoForge has no direct equivalent of Fabric's END_CLIENT_TICK, so this
+   * hangs off the client player's post-tick. That fires once per client tick
+   * while in a world, which is exactly when there is anything to scan — and
+   * outside a world the mod has nothing to do anyway.
+   */
+  private void onClientTick(PlayerTickEvent.Post event)
+  {
+    Minecraft client = Minecraft.getInstance();
+    if (event.getEntity() != client.player) {
+      return;
     }
 
-    private void onClientSetup(FMLClientSetupEvent event) {
-        Constants.LOGGER.info("{} (NeoForge) initialized", Constants.MOD_NAME);
+    BlockGrepKeys.tick(client);
+
+    if (!BlockGrepConfig.get().enabled) {
+      return;
     }
-
-    private void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        for (net.minecraft.client.KeyMapping mapping : BlockGrepKeys.create()) {
-            event.register(mapping);
-        }
+    if (client.level != null) {
+      PatternManager.compileIfNeeded();
     }
-
-    private void onRegisterClientCommands(RegisterClientCommandsEvent event) {
-        GrepCommand.register(event.getDispatcher(), new NeoForgeCommandPlatform());
+    GrepState.tick(client);
+    if (GrepState.isActive()) {
+      MatchRenderer.emit(GrepState.currentHits());
     }
-
-    /**
-     * The per-tick scan and gizmo emission.
-     *
-     * NeoForge has no direct equivalent of Fabric's END_CLIENT_TICK, so this
-     * hangs off the client player's post-tick. That fires once per client tick
-     * while in a world, which is exactly when there is anything to scan — and
-     * outside a world the mod has nothing to do anyway.
-     */
-    private void onClientTick(PlayerTickEvent.Post event) {
-        Minecraft client = Minecraft.getInstance();
-        if (event.getEntity() != client.player) {
-            return;
-        }
-
-        BlockGrepKeys.tick(client);
-
-        if (!BlockGrepConfig.get().enabled) {
-            return;
-        }
-        if (client.level != null) {
-            PatternManager.compileIfNeeded();
-        }
-        GrepState.tick(client);
-        if (GrepState.isActive()) {
-            MatchRenderer.emit(GrepState.currentHits());
-        }
-    }
+  }
 }

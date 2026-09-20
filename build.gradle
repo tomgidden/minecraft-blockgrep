@@ -23,7 +23,7 @@ subprojects {
  *
  * `./gradlew deploy` builds both loaders and installs both. Deploying the pair together
  * is the point: a session spent testing one loader while the other's jar silently ages is
- * how a playtest ends up describing behaviour from a build that no longer exists — which
+ * how a playtest ends up describing behavior from a build that no longer exists — which
  * cost an evening once, chasing three theories about code that was not running.
  *
  * Destinations come from the DEVSERVERS environment variable, colon-separated, and are

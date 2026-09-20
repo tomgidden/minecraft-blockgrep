@@ -15,27 +15,30 @@ import net.minecraft.network.chat.Component;
  * than a client-specific source, so the vanilla builders apply directly.
  */
 public final class NeoForgeCommandPlatform implements CommandPlatform<CommandSourceStack> {
+  @Override
+  public LiteralArgumentBuilder<CommandSourceStack> literal(String name)
+  {
+    return Commands.literal(name);
+  }
 
-    @Override
-    public LiteralArgumentBuilder<CommandSourceStack> literal(String name) {
-        return Commands.literal(name);
-    }
+  @Override
+  public <T> RequiredArgumentBuilder<CommandSourceStack, T> argument(
+      String name, ArgumentType<T> type)
+  {
+    return Commands.argument(name, type);
+  }
 
-    @Override
-    public <T> RequiredArgumentBuilder<CommandSourceStack, T> argument(
-            String name, ArgumentType<T> type) {
-        return Commands.argument(name, type);
-    }
+  @Override
+  public void sendFeedback(CommandSourceStack source, Component message)
+  {
+    // Not a "success" in the command-result sense — this is a client-side
+    // informational reply, so it never wants to go to the operator log.
+    source.sendSuccess(() -> message, false);
+  }
 
-    @Override
-    public void sendFeedback(CommandSourceStack source, Component message) {
-        // Not a "success" in the command-result sense — this is a client-side
-        // informational reply, so it never wants to go to the operator log.
-        source.sendSuccess(() -> message, false);
-    }
-
-    @Override
-    public void sendError(CommandSourceStack source, Component message) {
-        source.sendFailure(message);
-    }
+  @Override
+  public void sendError(CommandSourceStack source, Component message)
+  {
+    source.sendFailure(message);
+  }
 }

@@ -8,28 +8,33 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 
-/** Fabric's client command source, behind the shared interface. */
+/**
+ * Fabric's client command source, behind the shared interface.
+ */
 public final class FabricCommandPlatform
-        implements CommandPlatform<FabricClientCommandSource> {
+    implements CommandPlatform<FabricClientCommandSource> {
+  @Override
+  public LiteralArgumentBuilder<FabricClientCommandSource> literal(String name)
+  {
+    return ClientCommands.literal(name);
+  }
 
-    @Override
-    public LiteralArgumentBuilder<FabricClientCommandSource> literal(String name) {
-        return ClientCommands.literal(name);
-    }
+  @Override
+  public <T> RequiredArgumentBuilder<FabricClientCommandSource, T> argument(
+      String name, ArgumentType<T> type)
+  {
+    return ClientCommands.argument(name, type);
+  }
 
-    @Override
-    public <T> RequiredArgumentBuilder<FabricClientCommandSource, T> argument(
-            String name, ArgumentType<T> type) {
-        return ClientCommands.argument(name, type);
-    }
+  @Override
+  public void sendFeedback(FabricClientCommandSource source, Component message)
+  {
+    source.sendFeedback(message);
+  }
 
-    @Override
-    public void sendFeedback(FabricClientCommandSource source, Component message) {
-        source.sendFeedback(message);
-    }
-
-    @Override
-    public void sendError(FabricClientCommandSource source, Component message) {
-        source.sendError(message);
-    }
+  @Override
+  public void sendError(FabricClientCommandSource source, Component message)
+  {
+    source.sendError(message);
+  }
 }

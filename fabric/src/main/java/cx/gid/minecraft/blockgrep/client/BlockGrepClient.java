@@ -16,50 +16,48 @@ import net.fabricmc.loader.api.FabricLoader;
  * that do not have it installed.
  */
 public class BlockGrepClient implements ClientModInitializer {
+  @Override
+  public void onInitializeClient()
+  {
+    // Load before anything can read a setting. apply() also clamps values, so
+    // a hand-edited file cannot push a nonsense radius into the scanner.
+    BlockGrepConfig.setPath(FabricLoader.getInstance().getConfigDir().resolve(Constants.MOD_ID + ".json"));
+    BlockGrepConfig.load();
+    BlockGrepConfig.get().apply();
 
-    @Override
-    public void onInitializeClient() {
-        // Load before anything can read a setting. apply() also clamps values, so
-        // a hand-edited file cannot push a nonsense radius into the scanner.
-        BlockGrepConfig.setPath(FabricLoader.getInstance().getConfigDir()
-            .resolve(Constants.MOD_ID + ".json"));
-        BlockGrepConfig.load();
-        BlockGrepConfig.get().apply();
+    // Deliberately not compiled here. A pattern naming a block tag has to
+    // resolve it against the registry, and tags are not bound until a world
+    // loads — doing it now throws and takes the whole client down with it.
+    // The patterns are marked dirty instead and built on the first tick that
+    // has a level, by which point the registry is ready.
+    PatternManager.invalidate();
 
-        // Deliberately not compiled here. A pattern naming a block tag has to
-        // resolve it against the registry, and tags are not bound until a world
-        // loads — doing it now throws and takes the whole client down with it.
-        // The patterns are marked dirty instead and built on the first tick that
-        // has a level, by which point the registry is ready.
-        PatternManager.invalidate();
+    ClientCommandRegistrationCallback.EVENT.register(
+        (dispatcher, registryAccess) -> GrepCommand.register(dispatcher, new cx.gid.minecraft.blockgrep.fabric.FabricCommandPlatform()));
 
-        ClientCommandRegistrationCallback.EVENT.register(
-            (dispatcher, registryAccess) -> GrepCommand.register(dispatcher,
-                new cx.gid.minecraft.blockgrep.fabric.FabricCommandPlatform()));
-
-        for (net.minecraft.client.KeyMapping mapping : BlockGrepKeys.create()) {
-            net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
-                .registerKeyMapping(mapping);
-        }
-        ClientTickEvents.END_CLIENT_TICK.register(BlockGrepKeys::tick);
-
-        // Both the rescan check and gizmo emission happen here. The game wraps
-        // the client tick in a gizmo collection scope and drains it afterwards,
-        // so boxes emitted now are drawn for the coming frames.
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            BlockGrepConfig config = BlockGrepConfig.get();
-            if (!config.enabled) {
-                return;
-            }
-            if (client.level != null) {
-                PatternManager.compileIfNeeded();
-            }
-            GrepState.tick(client);
-            if (GrepState.isActive()) {
-                MatchRenderer.emit(GrepState.currentHits());
-            }
-        });
-
-        Constants.LOGGER.info("{} initialized", Constants.MOD_NAME);
+    for (net.minecraft.client.KeyMapping mapping : BlockGrepKeys.create()) {
+      net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+          .registerKeyMapping(mapping);
     }
+    ClientTickEvents.END_CLIENT_TICK.register(BlockGrepKeys::tick);
+
+    // Both the rescan check and gizmo emission happen here. The game wraps
+    // the client tick in a gizmo collection scope and drains it afterwards,
+    // so boxes emitted now are drawn for the coming frames.
+    ClientTickEvents.END_CLIENT_TICK.register(client -> {
+      BlockGrepConfig config = BlockGrepConfig.get();
+      if (!config.enabled) {
+        return;
+      }
+      if (client.level != null) {
+        PatternManager.compileIfNeeded();
+      }
+      GrepState.tick(client);
+      if (GrepState.isActive()) {
+        MatchRenderer.emit(GrepState.currentHits());
+      }
+    });
+
+    Constants.LOGGER.info("{} initialized", Constants.MOD_NAME);
+  }
 }

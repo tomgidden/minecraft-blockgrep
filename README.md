@@ -33,15 +33,20 @@ On Fabric, if you have **Mod Menu** installed, it'll appear in the mod menu list
 
 In the settings screen you can create new patterns and configure their rendering
 settings. Pattern shapes can be defined directly using text syntax in the pattern
-field, or built visually using **Open 3D pattern builder…** to paint an orbitable voxel
-volume from the complete block and tag palettes.
+field, or built visually using **Edit pattern…** to paint an orbitable voxel
+volume from the complete block and tag palettes. The builder needs a world
+loaded, since it draws the palette from the game's own item models.
 
-In the builder, left-click paints, right-click erases to an **Any Block** wildcard,
-middle-click picks a voxel's rule, right-drag orbits, and the wheel zooms. The `+`
-tool builds block/tag alternatives and `!` negates a palette choice. Dimension and
-Y-slice controls, undo/redo, and capture-from-world are available in the toolbar.
-The generated Block Grep source remains fully editable in the text field and
-compatible with the commands below.
+In the builder, left-click paints, right-click erases to an **Any Block**
+wildcard, middle-click picks a voxel's rule, drag orbits, and the wheel zooms.
+On a trackpad or single-button mouse, shift-click stands in for right-click and
+cmd-click (ctrl-click off macOS) for middle-click.
+
+Set the pattern size with the **Grid** fields, or with the `+`/`−` buttons that
+float at the corners of the volume. The `+` tool builds block/tag alternatives
+and `!` negates a palette choice; Y-slice controls, undo/redo, and
+capture-from-world are in the toolbar. The generated Block Grep source remains
+fully editable in the text field and compatible with the commands below.
 
 ![The Settings screen](screenshot2.jpg)
 

@@ -20,17 +20,25 @@ import net.minecraft.network.chat.Component;
  *
  * @param <S> the loader's command source type
  */
-public interface CommandPlatform<S> {
+public interface CommandPlatform<S>
+{
+  /**
+   * A literal node, e.g. the {@code list} in {@code /blockgrep list}.
+   */
+  LiteralArgumentBuilder<S> literal(String name);
 
-    /** A literal node, e.g. the {@code list} in {@code /blockgrep list}. */
-    LiteralArgumentBuilder<S> literal(String name);
+  /**
+   * An argument node, e.g. the {@code <n>} in {@code /blockgrep toggle <n>}.
+   */
+  <T> RequiredArgumentBuilder<S, T> argument(String name, ArgumentType<T> type);
 
-    /** An argument node, e.g. the {@code <n>} in {@code /blockgrep toggle <n>}. */
-    <T> RequiredArgumentBuilder<S, T> argument(String name, ArgumentType<T> type);
+  /**
+   * Ordinary output, shown in chat.
+   */
+  void sendFeedback(S source, Component message);
 
-    /** Ordinary output, shown in chat. */
-    void sendFeedback(S source, Component message);
-
-    /** Failure output, shown in red. */
-    void sendError(S source, Component message);
+  /**
+   * Failure output, shown in red.
+   */
+  void sendError(S source, Component message);
 }

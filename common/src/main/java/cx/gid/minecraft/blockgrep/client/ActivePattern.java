@@ -17,11 +17,5 @@ import cx.gid.minecraft.blockgrep.pattern.Symmetry;
  * config package. Instances are immutable so the scan can hold one while the
  * player edits the underlying entry.
  */
-public record ActivePattern(String name,
-                            Pattern pattern,
-                            Symmetry symmetry,
-                            int strokeColor,
-                            int fillColor,
-                            float strokeWidth,
-                            boolean xray) {
+public record ActivePattern(String name, Pattern pattern, Symmetry symmetry, int strokeColor, int fillColor, float strokeWidth, boolean xray) {
 }

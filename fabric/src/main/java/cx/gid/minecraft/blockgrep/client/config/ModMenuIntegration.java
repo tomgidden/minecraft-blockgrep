@@ -11,10 +11,9 @@ import net.minecraft.client.gui.screens.Screen;
  * this class is never touched.
  */
 public class ModMenuIntegration implements ModMenuApi {
-
-    @Override
-    public com.terraformersmc.modmenu.api.ConfigScreenFactory<?> getModConfigScreenFactory() {
-        return (Screen parent) ->
-            cx.gid.minecraft.blockgrep.client.config.ConfigScreenFactory.create(parent);
-    }
+  @Override
+  public com.terraformersmc.modmenu.api.ConfigScreenFactory<?> getModConfigScreenFactory()
+  {
+    return (Screen parent) -> cx.gid.minecraft.blockgrep.client.config.ConfigScreenFactory.create(parent);
+  }
 }
