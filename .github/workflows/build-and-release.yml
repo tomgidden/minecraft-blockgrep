@@ -1,5 +1,5 @@
 # Thin caller for the shared pipeline, which lives in
-# https://github.com/tomgidden/minecraft-mod-build-and-publish and is
+# https://github.com/tomgidden/minecraft-common and is
 # documented there. Everything mod-specific is in .github/release/.
 #
 # Every tag builds; the tag's shape decides what gets published:
@@ -16,12 +16,20 @@ name: Build and Release
 on:
   workflow_dispatch:
     inputs:
-      modrinth:
+      publish_to_github:
+        description: 'Publish to GitHub'
+        type: boolean
+        default: true
+      publish_to_modrinth:
         description: 'Also publish to Modrinth'
         type: boolean
         default: false
-      curseforge:
+      publish_to_curseforge:
         description: 'Also publish to CurseForge'
+        type: boolean
+        default: false
+      from_release:
+        description: 'Reuse the jars already on this tag''s GitHub release (no rebuild)'
         type: boolean
         default: false
   push:
@@ -30,13 +38,20 @@ on:
 
 jobs:
   call:
-    uses: tomgidden/minecraft-mod-build-and-publish/.github/workflows/build-and-release.yml@v1
+    uses: tomgidden/minecraft-common/.github/workflows/build-and-release.yml@v1
     permissions:
       contents: write
     with:
       # inputs.* is null on a tag push, and null fails the boolean type check.
-      modrinth: ${{ inputs.modrinth || false }}
-      curseforge: ${{ inputs.curseforge || false }}
+      publish_to_github: ${{ inputs.publish_to_github || false }}
+      publish_to_modrinth: ${{ inputs.publish_to_modrinth || false }}
+      publish_to_curseforge: ${{ inputs.publish_to_curseforge || false }}
+      from_release: ${{ inputs.from_release || false }}
+
+      # Must match the @ref in `uses:` above: the pipeline and the Gradle
+      # conventions it builds with are versioned together.
+      common_ref: v1
+
       # Passed explicitly: a called workflow cannot see the caller's `vars`.
       # (The tokens need no such help -- `secrets: inherit` covers them.)
       #
@@ -46,4 +61,5 @@ jobs:
       # secrets.*_ID on its side, where the context does exist.
       modrinth_id: ${{ vars.MODRINTH_ID }}
       curseforge_id: ${{ vars.CURSEFORGE_ID }}
+
     secrets: inherit

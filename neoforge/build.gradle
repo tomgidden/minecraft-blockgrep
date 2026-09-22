@@ -3,7 +3,7 @@ plugins {
 }
 
 base {
-    archivesName = "${project.archives_base_name}-neoforge"
+    archivesName = "${project.archives_base}-neoforge"
 }
 
 neoForge {
