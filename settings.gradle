@@ -1,4 +1,18 @@
 pluginManagement {
+    // Shared build conventions. Normally the minecraft-common checkout beside
+    // this one; on CI the workflow checks it out into .minecraft-common
+    // instead, because actions/checkout refuses a path outside the workspace.
+    // An included build is compiled from source, so a local edit is picked up
+    // immediately with nothing to publish or version.
+    //
+    // If neither exists the build fails on the missing plugin id, which names
+    // what is wrong -- see minecraft-common's README for the setup.
+    def conventions = [file('../common/gradle'), file('.minecraft-common/gradle')]
+        .find { it.isDirectory() }
+    if (conventions) {
+        includeBuild conventions
+    }
+
     repositories {
         maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
         maven { name = 'NeoForge'; url = 'https://maven.neoforged.net/releases/' }
